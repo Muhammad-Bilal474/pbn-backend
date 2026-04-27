@@ -1,10 +1,7 @@
 import User from "../models/User.js";
 import Post from "../models/Post.js";
-import AuditLog from "../models/AuditLog.js";
 import { ApiError, asyncHandler, ApiResponse } from "../utils/helpers.js";
 import jwtUtil from "../utils/jwt.js";
-import { sendWelcomeEmail } from "../utils/emailService.js";
-import { ACTIONS } from "../utils/constants.js";
 
 // Register/Login
 export const login = asyncHandler(async (req, res) => {
@@ -29,14 +26,6 @@ export const login = asyncHandler(async (req, res) => {
 
   const token = jwtUtil.generateToken(user._id);
 
-  // Log action
-  await AuditLog.create({
-    user: user._id,
-    action: ACTIONS.LOGIN,
-    resource: "AUTH",
-    status: "SUCCESS",
-  });
-
   res.status(200).json(
     new ApiResponse(
       200,
@@ -56,43 +45,6 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, user, "User fetched successfully"));
 });
 
-// Update user profile
-export const updateProfile = asyncHandler(async (req, res) => {
-  const { name, email } = req.body;
-  const userId = req.user._id;
-
-  const user = await User.findByIdAndUpdate(
-    userId,
-    { name: name || req.user.name, email: email || req.user.email },
-    { new: true, runValidators: true },
-  );
-
-  res
-    .status(200)
-    .json(new ApiResponse(200, user, "Profile updated successfully"));
-});
-
-// Change password
-export const changePassword = asyncHandler(async (req, res) => {
-  const { oldPassword, newPassword, confirmPassword } = req.body;
-
-  if (newPassword !== confirmPassword) {
-    throw new ApiError(400, "Passwords do not match");
-  }
-
-  const user = await User.findById(req.user._id).select("+password");
-
-  if (!(await user.matchPassword(oldPassword))) {
-    throw new ApiError(401, "Current password is incorrect");
-  }
-
-  user.password = newPassword;
-  await user.save();
-
-  res
-    .status(200)
-    .json(new ApiResponse(200, {}, "Password changed successfully"));
-});
 
 // Get all users (Super Admin only)
 export const getAllUsers = asyncHandler(async (req, res) => {
@@ -145,26 +97,13 @@ export const createUser = asyncHandler(async (req, res) => {
     role,
   });
 
-  // Send welcome email
-  // await sendWelcomeEmail(email, name, tempPassword);
-
-  // Log action
-  await AuditLog.create({
-    user: req.user._id,
-    action: ACTIONS.USER_CREATED,
-    resource: "USER",
-    resourceId: user._id,
-    description: `User ${email} created by admin`,
-    status: "SUCCESS",
-  });
-
   res
     .status(201)
     .json(
       new ApiResponse(
         201,
         user,
-        "User created successfully. Credentials sent via email",
+        "User created successfully",
       ),
     );
 });
@@ -197,31 +136,6 @@ export const deleteUser = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User not found");
   }
 
-  // Log action
-  await AuditLog.create({
-    user: req.user._id,
-    action: ACTIONS.USER_DELETED,
-    resource: "USER",
-    resourceId: userId,
-    description: `User ${user.email} deleted by admin`,
-    status: "SUCCESS",
-  });
-
   res.status(200).json(new ApiResponse(200, {}, "User deleted successfully"));
 });
 
-// Assign sheets to user
-export const assignSheets = asyncHandler(async (req, res) => {
-  const { userId } = req.params;
-  const { sheetIds } = req.body;
-
-  const user = await User.findByIdAndUpdate(
-    userId,
-    { assignedSheets: sheetIds },
-    { new: true },
-  ).populate("assignedSheets");
-
-  res
-    .status(200)
-    .json(new ApiResponse(200, user, "Sheets assigned successfully"));
-});

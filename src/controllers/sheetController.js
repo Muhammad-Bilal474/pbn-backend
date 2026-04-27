@@ -1,8 +1,7 @@
 import Sheet from '../models/Sheet.js';
 import User from '../models/User.js';
 import { ApiError, asyncHandler, ApiResponse } from '../utils/helpers.js';
-import { ACTIONS, VISIBILITY, ROLES } from '../utils/constants.js';
-import AuditLog from '../models/AuditLog.js';
+import { VISIBILITY, ROLES } from '../utils/constants.js';
 
 // Upload/Create Sheet
 export const uploadSheet = asyncHandler(async (req, res) => {
@@ -16,16 +15,6 @@ export const uploadSheet = asyncHandler(async (req, res) => {
     visibility: visibility || VISIBILITY.PRIVATE,
     createdBy: req.user._id,
     metadata: metadata || {},
-  });
-
-  // Log action
-  await AuditLog.create({
-    user: req.user._id,
-    action: ACTIONS.SHEET_UPLOADED,
-    resource: 'SHEET',
-    resourceId: sheet._id,
-    description: `Sheet "${siteUrl}" uploaded`,
-    status: 'SUCCESS',
   });
 
   res.status(201).json(
@@ -65,15 +54,6 @@ export const bulkUploadSheets = asyncHandler(async (req, res) => {
   }
 
   const createdSheets = await Sheet.insertMany(newSheets);
-
-  // Log action
-  await AuditLog.create({
-    user: req.user._id,
-    action: ACTIONS.SHEET_UPLOADED,
-    resource: 'SHEET',
-    description: `Bulk uploaded ${createdSheets.length} sheets`,
-    status: 'SUCCESS',
-  });
 
   res.status(201).json(
     new ApiResponse(201, { count: createdSheets.length }, `Successfully imported ${createdSheets.length} websites`)

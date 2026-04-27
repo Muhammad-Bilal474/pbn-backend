@@ -1,9 +1,8 @@
 import Post from '../models/Post.js';
 import Sheet from '../models/Sheet.js';
 import { ApiError, asyncHandler, ApiResponse } from '../utils/helpers.js';
-import { POST_STATUS, POSTING_RESULTS, ACTIONS } from '../utils/constants.js';
+import { POST_STATUS, POSTING_RESULTS } from '../utils/constants.js';
 import { generateArticleWithClaude, generateSeoMetadata } from '../services/aiService.js';
-import AuditLog from '../models/AuditLog.js';
 
 // Create post (initiate article generation)
 export const createPost = asyncHandler(async (req, res) => {
@@ -34,16 +33,6 @@ export const createPost = asyncHandler(async (req, res) => {
     isScheduled: !!scheduledTime,
     scheduledTime: scheduledTime || null,
     content: '', // Will be populated by AI
-  });
-
-  // Log action
-  await AuditLog.create({
-    user: req.user._id,
-    action: ACTIONS.POST_CREATED,
-    resource: 'POST',
-    resourceId: post._id,
-    description: `Post "${title}" created`,
-    status: 'SUCCESS',
   });
 
   res.status(201).json(
@@ -243,15 +232,6 @@ const publishToSites = async (postId) => {
 
     post.status = POST_STATUS.COMPLETED;
     await post.save();
-
-    // Log action
-    await AuditLog.create({
-      user: post.author,
-      action: ACTIONS.POST_POSTED,
-      resource: 'POST',
-      resourceId: postId,
-      status: 'SUCCESS',
-    });
 
     console.log(`✅ Post ${postId} published to all sites`);
   } catch (error) {

@@ -6,6 +6,7 @@ import authRoutes from './src/routes/authRoutes.js';
 import sheetRoutes from './src/routes/sheetRoutes.js';
 import postRoutes from './src/routes/postRoutes.js';
 import { errorHandler, notFoundHandler } from './src/middleware/errorHandler.js';
+import User from './src/models/User.js';
 
 dotenv.config();
 
@@ -37,7 +38,6 @@ app.use('/api/v1/posts', postRoutes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-import User from './src/models/User.js';
 
 // Initialize Admin on Startup
 const initializeAdmin = async () => {
@@ -51,7 +51,7 @@ const initializeAdmin = async () => {
         password: 'admin123',
         role: 'SUPER_ADMIN',
       });
-      console.log('✅ Default Admin Created: admin@pbn.com / test@1234');
+      console.log('✅ Default Admin Created: admin@pbn.com / admin123');
 
     }
   } catch (error) {
