@@ -29,6 +29,7 @@ export const createPost = asyncHandler(async (req, res) => {
     keywords,
     author: req.user._id,
     selectedSites,
+    targetUrl,
     status: POST_STATUS.GENERATING,
     isScheduled: !!scheduledTime,
     scheduledTime: scheduledTime || null,
@@ -40,13 +41,19 @@ export const createPost = asyncHandler(async (req, res) => {
   );
 
   // Generate article in background
-  generateAndSaveArticle(post._id, title, keywords);
+  generateAndSaveArticle(post._id, title, keywords, targetUrl);
 });
 
 // Background function to generate article
-const generateAndSaveArticle = async (postId, tempTitle, keywords) => {
+const generateAndSaveArticle = async (postId, tempTitle, keywords, targetUrl = null) => {
   try {
-    const response = await generateArticleWithClaude(keywords, `Make sure to include an engaging <h1> tag containing the article title at the very beginning.`);
+    let context = `Make sure to include an engaging <h1> tag containing the article title at the very beginning.`;
+    
+    if (targetUrl) {
+      context += ` IMPORTANT: You MUST contextually insert a backlink to "${targetUrl}" using one of these keywords as anchor text: ${keywords.join(', ')}. Use natural phrasing.`;
+    }
+
+    const response = await generateArticleWithClaude(keywords, context);
 
     let finalTitle = tempTitle;
     const h1Match = response.content.match(/<h1[^>]*>(.*?)<\/h1>/i);
@@ -73,6 +80,12 @@ const generateAndSaveArticle = async (postId, tempTitle, keywords) => {
     );
 
     console.log(`✅ Article generated for post ${postId}`);
+
+    // Auto-publish if flag is set
+    if (updatedPost.autoPublish) {
+      console.log(`🚀 Auto-publishing post ${postId}...`);
+      await publishToSites(postId);
+    }
   } catch (error) {
     console.error(`❌ Article generation failed for post ${postId}:`, error.message);
     await Post.findByIdAndUpdate(postId, {
@@ -80,6 +93,44 @@ const generateAndSaveArticle = async (postId, tempTitle, keywords) => {
     });
   }
 };
+
+// Create bulk posts
+export const createBulkPosts = asyncHandler(async (req, res) => {
+  const { posts } = req.body; 
+
+  if (!posts || !Array.isArray(posts) || posts.length === 0) {
+    throw new ApiError(400, 'Posts array is required');
+  }
+
+  const createdPosts = [];
+
+  for (const postData of posts) {
+    const { keywords, selectedSites, targetUrl } = postData;
+
+    if (!keywords || keywords.length === 0 || !selectedSites || selectedSites.length === 0) {
+      continue; // Skip invalid entries
+    }
+
+    const title = `AI Generating: ${keywords.join(', ')}`;
+
+    const post = await Post.create({
+      title,
+      keywords,
+      author: req.user._id,
+      selectedSites,
+      targetUrl,
+      autoPublish: true, // Default to true for bulk creation
+      status: POST_STATUS.GENERATING,
+    });
+
+    generateAndSaveArticle(post._id, title, keywords, targetUrl);
+    createdPosts.push(post);
+  }
+
+  res.status(201).json(
+    new ApiResponse(201, { count: createdPosts.length }, `${createdPosts.length} posts initiated with auto-publish.`)
+  );
+});
 
 // Get all posts
 export const getAllPosts = asyncHandler(async (req, res) => {

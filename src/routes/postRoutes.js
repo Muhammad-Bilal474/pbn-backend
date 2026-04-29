@@ -7,6 +7,7 @@ import {
   publishPost,
   deletePost,
   getPostHistory,
+  createBulkPosts,
 } from '../controllers/postController.js';
 import {
   authenticate,
@@ -26,6 +27,9 @@ router.get('/', getAllPosts);
 
 // Create post
 router.post('/', validatePostCreation, handleValidationErrors, createPost);
+
+// Create bulk posts
+router.post('/bulk', createBulkPosts);
 
 // Get single post
 router.get('/:postId', getPost);

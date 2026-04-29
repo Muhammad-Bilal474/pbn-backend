@@ -9,7 +9,11 @@ const postSchema = new mongoose.Schema(
     },
     content: {
       type: String,
-      required: [true, 'Content is required'],
+      default: '',
+    },
+    autoPublish: {
+      type: Boolean,
+      default: false,
     },
     keywords: [
       {
@@ -53,6 +57,10 @@ const postSchema = new mongoose.Schema(
       seoTitle: String,
       seoDescription: String,
       featuredImage: String,
+    },
+    targetUrl: {
+      type: String,
+      trim: true,
     },
     isScheduled: {
       type: Boolean,
